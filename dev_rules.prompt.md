@@ -1,81 +1,67 @@
-# Dev Rules Prompt
+# 任务：配置并使用 iOS 开发规范
 
-## 作用
-指导 AI 在 iOS 项目开发中严格遵守编码规范，包括技术栈选择、日志规范、错误处理等。
+你的任务是：将当前工程中的 `dev_rules.md` 文件加载到你的规则系统中，并在后续代码生成中严格执行。
 
-## 配置方式
-在 AI 工具（如 Cursor、Claude Code、Kimi 等）的设置中，将本文件添加为：
-- **Context Rules** / **系统提示词** 
-- 或放在项目根目录的 `.cursorrules`、`.claude.md` 等位置
+---
 
-## 何时激活
-- 生成新代码时
-- 修改现有代码时
-- 代码审查/重构时
+## 规则文件
+- **文件名**：`dev_rules.md`
+- **内容性质**：iOS 编码规范（UIKit/SnapKit/Logger/assertionFailure 等）
 
-## 核心指令
+---
 
-### 1. 强制前置检查
-每次生成/修改代码前，必须在内心确认：
-```
-□ 使用 UIKit + SnapKit，非 SwiftUI/Storyboard/XIB
-□ 不修改 .pbxproj / Podfile.lock / Pods/
-□ Logger 使用 extension Logger 定义（os.log）
-□ Guard 语句分行写
-□ try-catch 包含 assertionFailure + Logger.error
-```
+## 执行步骤
 
-### 2. 代码生成规范
+### 步骤 1：寻找文件
+在当前工作目录及其子目录中搜索 `dev_rules.md` 文件。
 
-**文件头部必须包含：**
-```swift
-import UIKit
-import os.log
+### 步骤 2：加载到规则系统
+找到文件后：
+1. 阅读并理解其内容
+2. 将规范**引用配置到你的规则系统**中，确保在生成代码时自动应用
+3. 检查当前工程是否已有冲突规则（如项目自带的其他编码规范）
+4. 如有冲突，**列出冲突点并提出解决方案，等待用户确认后再执行**
+5. 无冲突或确认后，告知用户："dev_rules.md 已加载并生效"
 
-// MARK: - Logger
-extension Logger {
-    private static let subsystem = "com.app.<模块名>"
-    static let <category> = Logger(subsystem: subsystem, category: "<Category>")
-}
-```
+---
 
-**日志格式要求：**
-- 每条日志：`[方法名] 描述, 关键数据`
-- 示例：`Logger.network.log("[fetchUser] start, userId: \(userId)")`
+## 何时使用此规则
 
-**Guard 语句：**
-```swift
-// ✅ 必须分行
-guard let self = self else {
-    Logger.<category>.error("[<method>] self 已释放")
-    return false
-}
-```
+配置完成后，在以下场景中**必须**应用该规范：
+- 生成新的代码
+- 修改现有代码逻辑
+- 进行代码审查或优化建议
 
-**异常处理：**
-```swift
-do {
-    try operation()
-} catch {
-    assertionFailure("[<method>] 失败: \(error)")
-    Logger.<category>.error("[<method>] error: \(error)")
-}
-```
+---
 
-### 3. 禁止事项
-- 禁止生成 SwiftUI、Storyboard、XIB 代码
-- 禁止修改工程配置文件
-- 禁止多个 Subsystem（统一 Subsystem，不同 Category）
-- 禁止单行 Guard 语句
-- 禁止 catch 块只记录日志而不调用 assertionFailure
+## 核心要求
 
-### 4. 自检清单
-生成代码后，AI 必须自我验证：
-- [ ] UIKit + SnapKit
-- [ ] extension Logger 定义正确
-- [ ] 日志包含 [方法名] 和数据
-- [ ] Guard 分行且有日志
-- [ ] try-catch 有 assertionFailure
+生成代码时必须符合：
+- UIKit + SnapKit（禁止 SwiftUI/Storyboard）
+- 使用 `extension Logger` 定义日志（os.log）
+- 日志格式：`[方法名] 描述, 数据`
+- Guard 语句分行写，并包含日志
+- try-catch 包含 `assertionFailure` + `Logger.error`
 
-## 参考文档
-详细规则见同目录 `dev_rules.md`
+---
+
+## 规则关系检查
+
+**与 refactor.md 的关系**：
+- dev_rules = 编码规范（"怎么写"）
+- refactor = 重构决策（"要不要改"）
+- 两者互补，无矛盾
+
+**与 document_rules.md 的关系**：
+- dev_rules = 代码实现
+- document_rules = 文档管理
+- 两者互补，无矛盾
+
+---
+
+## 错误处理
+
+**如果找不到 `dev_rules.md`**：
+1. 告知用户："未找到 dev_rules.md 文件"
+2. 询问："请确认文件路径，或是否需要创建？"
+3. 在文件加载前，临时使用通用 iOS 最佳实践
