@@ -19,23 +19,6 @@ ln /Users/mc/Desktop/Rules/dev_rules.md ./dev_rules.md
 ln /Users/mc/Desktop/Rules/refactor.md ./refactor.md
 ```
 
-### 2. 批量创建脚本
-
-```bash
-#!/bin/bash
-# setup-rules.sh - 在项目初始化时运行
-
-RULES_DIR="/Users/mc/Desktop/Rules"
-PROJECT_DIR="$(pwd)"
-
-# 创建硬链接
-ln -f "${RULES_DIR}/dev_rules.md" "${PROJECT_DIR}/dev_rules.md"
-ln -f "${RULES_DIR}/refactor.md" "${PROJECT_DIR}/refactor.md"
-
-echo "Rules linked successfully!"
-ls -li ${PROJECT_DIR}/*.md
-```
-
 ### 3. 更新规则
 
 修改中央仓库的规则文件，所有硬链接的项目自动同步：
@@ -88,28 +71,3 @@ ls -li /Users/mc/Desktop/Rules/dev_rules.md
 # 2. 查找并删除所有硬链接
 find ~ -inum 12345678 -exec rm {} \;
 ```
-
----
-
-## 项目结构
-
-```
-Rules/                          # 中央规则仓库
-├── dev_rules.md               # iOS 开发规范（AI 执行手册）
-├── refactor.md                # 重构规则
-└── document_rules.md          # 文档规范
-
-Your-iOS-Project/              # 具体项目（通过硬链接引用规则）
-├── Your-iOS-Project.xcworkspace
-├── Podfile
-├── dev_rules.md  →  (硬链接) →  Rules/dev_rules.md
-└── refactor.md   →  (硬链接) →  Rules/refactor.md
-```
-
----
-
-## 注意事项
-
-- **不要直接修改项目中的规则文件**（虽然会同步到中央仓库，但容易混淆）
-- **推荐在中央仓库修改规则**，然后 `git commit`
-- **硬链接不能跨文件系统**（如外接硬盘）
