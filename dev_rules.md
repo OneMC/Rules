@@ -1,6 +1,22 @@
-# 开发规范
+# iOS 开发规范 (AI 执行手册)
 
-## 技术栈约束
+> **文档用途**：本规范用于指导 AI 代码生成，AI 必须严格遵守以下规则。
+
+---
+
+## 快速决策清单
+
+在生成/修改代码前，AI 必须按此清单检查：
+
+- [ ] 技术栈约束检查（UIKit/CocoaPods/SnapKit）
+- [ ] 工程文件禁令检查（.pbxproj/Podfile.lock/Pods/）
+- [ ] Logger 使用检查（subsystem/category 正确性）
+- [ ] Guard 格式检查（分行写）
+- [ ] assertionFailure 检查（异常路径必须添加）
+
+---
+
+## 一、技术栈约束（强制）
 
 | 技术 | 使用 | 禁止 |
 |------|------|------|
@@ -8,121 +24,112 @@
 | 依赖管理 | CocoaPods | SPM |
 | 布局 | SnapKit | Storyboard / XIB |
 
-## 工程文件禁令
+**AI 执行规则**：
+- 生成 UI 代码必须使用 UIKit
+- 布局代码必须使用 SnapKit
+- 禁止生成 SwiftUI、Storyboard、XIB 相关代码
 
-- **禁止修改 `.pbxproj`** - 创建文件后由开发者手动添加到 Xcode
-- **禁止修改 `Podfile.lock`** - 只能改 `Podfile`，由开发者执行 `pod install`
-- **禁止修改 `Pods/` 目录**
+---
 
-## 编译命令
+## 二、工程文件禁令（强制）
 
-项目使用 **CocoaPods** 管理依赖，比如进入到`.xcworkspace` 或 `.xcodeproj`的项目夹中进行编译，编译前必须在项目执行 `pod install`，
+**绝对禁止修改**：
+1. `.pbxproj` - 创建文件后由开发者手动添加到 Xcode
+2. `Podfile.lock` - 只能改 `Podfile`，由开发者执行 `pod install`
+3. `Pods/` 目录 - 完全禁止修改
 
-### 查看可用模拟器
+**AI 执行规则**：
+- 创建新文件时，只生成 `.swift` 文件，不修改项目配置文件
+- 需要添加依赖时，只修改 `Podfile`，不触碰 `Podfile.lock`
+
+---
+
+## 三、编译命令
 
 ```bash
+# 编译前必须在项目目录执行
+cd <项目目录> && pod install
+
+# 然后使用 .xcworkspace 打开/编译
+open *.xcworkspace
+# 或
+xcodebuild -workspace *.xcworkspace -scheme <SchemeName>
+
+# 查看可用模拟器
 xcrun simctl list devices
 ```
 
-## Logger 规范
+---
 
-> **说明**：本节阐述的是 **Subsystem 与 Category 的使用思想**，用于区分大功能模块和具体流程。
->
-> - 如果项目中已有的 Logger 库**支持** `subsystem` 和 `category` 参数，请直接使用项目封装
-> - 如果项目中 Logger 库**不支持**，建议开发者评估是否采用系统原生的 `os.log`，以获得 subsystem/category 的日志分类能力
+## 四、日志规范（强制）
 
-### Subsystem vs Category 规范
+### 4.1 核心思想
 
-**核心原则**：
-- **Subsystem**：标识一个大的功能模块（如 `com.app.module`）
-- **Category**：标识该模块内的具体流程或子功能（首字母大写）
+使用 **Subsystem + Category** 两层结构组织日志：
+- **Subsystem**：大功能模块（如 `com.app.network`）
+- **Category**：模块内的具体流程（如 `Request`, `Response`, `Error`）
 
-#### 1. Subsystem 定义
+> **兼容性说明**：如果项目已有 日志 库支持 subsystem/category，直接使用；否则建议采用系统 `os.log`。
 
-每个独立的大功能模块定义一个统一的 Subsystem：
+### 4.2 标准使用模式（os.log）
 
-```swift
-import os.log
-
-// ✅ 正确：整个模块使用统一的 Subsystem
-extension Logger {
-    private static let subsystem = "com.app.network"
-    
-    static let networkRequest = Logger(subsystem: subsystem, category: "Request")
-    static let networkResponse = Logger(subsystem: subsystem, category: "Response")
-    static let networkCache = Logger(subsystem: subsystem, category: "Cache")
-    static let networkError = Logger(subsystem: subsystem, category: "Error")
-}
-```
-
-**禁止**：将流程拆分成多个 Subsystem。
-
-```swift
-// ❌ 错误：不要把流程拆成多个 Subsystem
-extension Logger {
-    static let requestLogger = Logger(subsystem: "com.app.network.request", category: "Request")
-    static let responseLogger = Logger(subsystem: "com.app.network.response", category: "Response")
-}
-```
-
-#### 2. Category 定义
-
-使用 Category 区分同一模块内的不同流程：
+**前提**：必须导入 `os.log`，`Logger` 是 `OSLog.Logger` 的扩展
 
 ```swift
 import os.log
 
-// ✅ 正确：用 Category 区分流程
+// 扩展的是 os.log 的 Logger，不是自定义 Logger 类
 extension Logger {
+    // Subsystem = 模块标识
     private static let networkSubsystem = "com.app.network"
     
+    // Category = 流程标识（首字母大写）
     static let networkRequest  = Logger(subsystem: networkSubsystem, category: "Request")
     static let networkResponse = Logger(subsystem: networkSubsystem, category: "Response")
     static let networkCache    = Logger(subsystem: networkSubsystem, category: "Cache")
     static let networkError    = Logger(subsystem: networkSubsystem, category: "Error")
 }
-
-// 使用
-Logger.networkRequest.log("发起请求: \(url)")
-Logger.networkResponse.log("收到响应: \(status)")
-Logger.networkCache.log("缓存命中: \(key)")
-Logger.networkError.error("请求失败: \(error)")
 ```
 
-#### 3. 层级设计示例
-
-| 模块 | Subsystem | Category | 说明 |
-|------|-----------|----------|------|
-| 网络 | `com.app.network` | Request / Response / Cache / Error | 请求/响应/缓存/错误 |
-| 数据库 | `com.app.database` | Query / Migration / Sync / Error | 查询/迁移/同步/错误 |
-| 播放器 | `com.app.player` | Load / Buffer / Render / Control | 加载/缓冲/渲染/控制 |
-
-### 日志详细程度规范
-
-**原则**：日志从上到下逐级详细，确保能快速定位问题。
-
-#### 1. 入口层日志
-
-记录方法调用和关键参数：
-
+**使用方式**：
 ```swift
 import os.log
 
-extension Logger {
-    private static let subsystem = "com.app.user"
-    static let userProfile = Logger(subsystem: subsystem, category: "Profile")
-}
-
-// ✅ 正确：入口记录调用信息
-func fetchUserProfile(userId: String) {
-    Logger.userProfile.log("[fetchUserProfile] start, userId: \(userId)")
-    // ...
-}
+// 使用扩展中定义的静态属性
+Logger.networkRequest.log("发起请求: \(url)")
+Logger.networkResponse.log("收到响应: \(status)")
+Logger.networkError.error("请求失败: \(error)")
 ```
 
-#### 2. 流程节点日志
+### 4.3 禁止事项
 
-记录流程关键节点和状态变化：
+```swift
+// ❌ 禁止：将流程拆成多个 Subsystem
+static let requestLogger = Logger(subsystem: "com.app.network.request", category: "Request")
+static let responseLogger = Logger(subsystem: "com.app.network.response", category: "Response")
+
+// ✅ 正确：统一 Subsystem，用 Category 区分
+static let networkRequest  = Logger(subsystem: "com.app.network", category: "Request")
+static let networkResponse = Logger(subsystem: "com.app.network", category: "Response")
+```
+
+### 4.4 日志详细程度（强制）
+
+**每条日志必须包含**：
+1. **[方法名]**：上下文标识
+2. **关键数据**：影响流程的变量值
+3. **状态信息**：当前阶段或结果
+
+**日志层级**：
+
+| 层级 | 记录内容 | 示例 |
+|------|---------|------|
+| 入口 | 方法调用 + 参数 | `[fetchUser] start, userId: xxx` |
+| 节点 | 流程关键节点 | `[fetchUser] cache hit` |
+| 分支 | 分支选择 + 条件 | `[fetchUser] use network, cache expired` |
+| 异常 | 详细错误信息 | `[fetchUser] failed, error: xxx` |
+
+**完整示例**：
 
 ```swift
 import os.log
@@ -132,105 +139,53 @@ extension Logger {
     static let payment = Logger(subsystem: subsystem, category: "Payment")
 }
 
-// ✅ 正确：记录流程节点
 func processPayment(orderId: String) {
+    // 1. 入口日志
     Logger.payment.log("[processPayment] start, orderId: \(orderId)")
     
+    // 2. 节点日志
     validateOrder(orderId)
     Logger.payment.log("[processPayment] order validated")
     
-    chargeCustomer()
-    Logger.payment.log("[processPayment] charged success")
+    // 3. 分支日志
+    if !hasEnoughBalance {
+        Logger.payment.log("[processPayment] insufficient balance, required: \(amount)")
+        return .failure(.insufficientBalance)
+    }
     
-    updateOrderStatus()
+    // 4. 异常日志
+    do {
+        try chargeCustomer()
+        Logger.payment.log("[processPayment] charged success")
+    } catch {
+        Logger.payment.error("[processPayment] charge failed, error: \(error)")
+        return .failure(.chargeFailed)
+    }
+    
     Logger.payment.log("[processPayment] finished")
 }
 ```
 
-#### 3. 分支判断日志
-
-记录分支选择和判断条件：
+**不良示例对比**：
 
 ```swift
-import os.log
+// ❌ 信息不足
+Logger.payment.log("start")
+Logger.payment.log("done")
 
-extension Logger {
-    private static let subsystem = "com.app.data"
-    static let dataLoad = Logger(subsystem: subsystem, category: "Data")
-}
-
-// ✅ 正确：记录分支选择
-if cache.isValid {
-    Logger.dataLoad.log("[loadData] use cache, age: \(cache.age)s")
-    return cache.data
-} else {
-    Logger.dataLoad.log("[loadData] cache expired, fetch from network")
-    return fetchFromNetwork()
-}
+// ✅ 详细完整
+Logger.payment.log("[processPayment] start, orderId: \(orderId)")
+Logger.payment.log("[processPayment] finished, transactionId: \(txId)")
 ```
 
-#### 4. 异常路径日志
+### 4.5 Guard 语句规范（强制）
 
-错误和异常必须有详细日志：
-
-```swift
-import os.log
-
-extension Logger {
-    private static let subsystem = "com.app.parser"
-    static let parse = Logger(subsystem: subsystem, category: "Parse")
-}
-
-// ✅ 正确：详细记录错误信息
-do {
-    let result = try parseResponse(data)
-    Logger.parse.log("[parseResponse] success, items: \(result.count)")
-} catch {
-    Logger.parse.error("[parseResponse] failed, dataSize: \(data.count), error: \(error)")
-    return nil
-}
-```
-
-#### 5. 日志内容规范
-
-每条日志应包含：
-- **上下文标识**：方法名/流程名
-- **关键数据**：影响流程的变量值
-- **状态信息**：当前执行的阶段或结果
+**必须分行写**，便于添加日志：
 
 ```swift
-import os.log
-
-extension Logger {
-    private static let subsystem = "com.app.sync"
-    static let sync = Logger(subsystem: subsystem, category: "Sync")
-}
-
-// ✅ 良好示例
-Logger.sync.log("[syncData] start, lastSync: \(lastSyncTime), pending: \(pendingItems.count)")
-Logger.sync.log("[syncData] batch uploaded, count: \(uploaded), failed: \(failed)")
-Logger.sync.log("[syncData] completed, nextSync: \(nextSyncTime)")
-
-// ❌ 不良示例：信息不足
-Logger.sync.log("sync started")
-Logger.sync.log("sync done")
-```
-
-### Guard 语句规范
-
-**原则**：guard 语句需要返回时，必须分行写，方便后续添加 debug 日志。
-
-```swift
-import os.log
-
-extension Logger {
-    private static let subsystem = "com.app.module"
-    static let error = Logger(subsystem: subsystem, category: "Error")
-}
-
-// ✅ 正确：分行写，便于添加日志
+// ✅ 正确：分行写
 guard let self = self else {
-    Logger.error.log("self 已释放")
+    Logger.error.error("[methodName] self 已释放")
     return false
 }
 
@@ -238,89 +193,57 @@ guard !items.isEmpty else {
     return
 }
 
-// ❌ 错误：不要写成一行
+// ❌ 禁止：写成一行
 guard let self = self else { return false }
 guard !items.isEmpty else { return }
 ```
 
-## assertionFailure 规则
+---
 
-### 核心原则
+## 五、assertionFailure 规则（强制）
 
-**开发期间应尽可能添加 `assertionFailure`**，用于在 Debug 模式下快速暴露问题，避免潜在 bug 流入生产环境。
+### 5.1 核心原则
 
-### 必须添加 assertionFailure 的场景
+**开发期间必须添加 assertionFailure**，用于 Debug 模式快速暴露问题。
 
-| 场景 | 说明 | 推荐方式 |
-|------|------|----------|
-| try-catch 异常 | 捕获到异常时立即触发 | `catch { assertionFailure("...") }` |
-| 严重 guard 失败 | 不应该发生的状态 | `assertionFailure("...")` |
-| 意外的 nil | 关键对象必须存在 | `assertionFailure("...")` |
-| 状态前置检查 | 条件不满足时触发 | `assert(condition, "...")` 或 `if !condition { assertionFailure("...") }` |
+### 5.2 必须使用场景
 
-### 示例场景
+| 场景 | 处理方式 |
+|------|---------|
+| try-catch 异常 | catch 块中必须调用 assertionFailure |
+| 严重 guard 失败 | 理论上不应该发生的情况 |
+| 意外的 nil | 关键对象必须存在 |
+| 状态不一致 | 内部状态错误 |
 
-#### try-catch 场景
+### 5.3 标准模式
 
+**try-catch 场景**：
 ```swift
-import os.log
-
-extension Logger {
-    static let parser = Logger(subsystem: "com.app.parser", category: "Parse")
-}
-
 do {
     let result = try parseResponse(data)
-    Logger.parser.log("[parseResponse] success, items: \(result.count)")
+    Logger.parse.log("[parseResponse] success, items: \(result.count)")
 } catch {
-    // ✅ 正确：触发 assertionFailure 并记录详细错误
+    // ✅ 必须：触发 assertionFailure + 记录详细错误
     assertionFailure("[parseResponse] 解析失败, dataSize: \(data.count), error: \(error)")
-    Logger.parser.error("[parseResponse] failed, dataSize: \(data.count), error: \(error)")
+    Logger.parse.error("[parseResponse] failed, dataSize: \(data.count), error: \(error)")
     return nil
 }
 ```
 
-#### guard 场景
-
+**guard 场景**：
 ```swift
-import os.log
-
-extension Logger {
-    static let dataAccess = Logger(subsystem: "com.app.data", category: "DataAccess")
-}
-
-// ✅ 正确：严重错误添加 assertionFailure
 guard let config = loadConfig() else {
+    // ✅ 理论上不应该发生
     assertionFailure("[loadConfig] 配置文件加载失败，路径: \(configPath)")
     Logger.dataAccess.error("[loadConfig] config 加载失败，使用默认配置")
     return defaultConfig
 }
-
-// ✅ 正确：数据有效性检查
-func processItems(_ items: [Item]) {
-    if items.isEmpty {
-        assertionFailure("[processItems] items 不应为空数组")
-    }
-    if items.count >= 10000 {
-        assertionFailure("[processItems] items 数量异常: \(items.count)")
-    }
-    
-    Logger.dataAccess.log("[processItems] start, count: \(items.count)")
-    // ...
-}
 ```
 
-#### 状态检查场景
-
+**状态检查场景**：
 ```swift
-import os.log
-
-extension Logger {
-    static let player = Logger(subsystem: "com.app.player", category: "Player")
-}
-
 func play() {
-    // ✅ 正确：前置状态检查
+    // ✅ 前置状态检查
     if playerState != .ready {
         assertionFailure("[play] 播放器状态错误: \(playerState)，必须先调用 prepare()")
     }
@@ -333,12 +256,12 @@ func play() {
 }
 ```
 
-### assertionFailure 内容规范
+### 5.4 内容规范
 
-**每条 assertionFailure 必须包含**:
-1. **方法名/上下文标识**：`[methodName]`
-2. **具体错误原因**：失败的具体原因
-3. **关键数据**：有助于定位问题的变量值
+**每条 assertionFailure 必须包含**：
+1. **[方法名]**：上下文标识
+2. **错误原因**：具体失败原因
+3. **关键数据**：有助于定位的变量值
 
 ```swift
 // ✅ 良好示例
@@ -346,25 +269,111 @@ assertionFailure("[fetchUser] response 为空, userId: \(userId), statusCode: \(
 assertionFailure("[selectItem] index 越界: \(index), count: \(count)")
 assertionFailure("[updateUI] 必须在主线程调用，当前线程: \(Thread.current)")
 
-// ❌ 不良示例：信息不足
+// ❌ 不良示例
 assertionFailure("")
 assertionFailure("result 为 nil")
 assertionFailure("出错了")
 ```
 
-### assertionFailure vs fatalError
+### 5.5 assertionFailure vs fatalError
 
-| 场景 | 推荐方式 | 说明 |
-|------|---------|------|
-| 开发期快速暴露问题 | `assertionFailure("...")` | Debug 触发，Release 忽略 |
-| 严重不可恢复错误 | `fatalError("...")` | 任何环境都崩溃 |
-| 理论上不可能发生 | `assertionFailure("...")` + 日志 | 开发期暴露，生产期优雅降级 |
+| 方式 | 使用场景 | 生产环境行为 |
+|------|---------|-------------|
+| `assertionFailure("...")` | 理论上不应发生的情况 | 忽略，继续执行 |
+| `fatalError("...")` | 严重不可恢复错误 | 崩溃 |
 
 ```swift
-// ✅ 正确：开发期暴露，生产期记录错误并降级
+// ✅ 开发期暴露，生产期优雅降级
 guard let data = cache[key] else {
     assertionFailure("[getCache] 缓存数据缺失, key: \(key)")
     Logger.cache.error("[getCache] cache miss, key: \(key)")
     return fetchFromNetwork(key)
 }
 ```
+
+---
+
+## 六、AI 代码生成模板参考
+
+### 6.1 新功能文件模板
+
+```swift
+import UIKit
+import os.log 
+
+// MARK: - Logger Definition (扩展 os.log.Logger)
+extension Logger {
+    private static let subsystem = "com.app.<模块名>"
+    static let <category> = Logger(subsystem: subsystem, category: "<Category>")
+}
+
+// MARK: - Class/Struct Definition
+final class <ClassName>: UIViewController {
+    
+    // MARK: - Properties
+    
+    // MARK: - Lifecycle
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        Logger.<category>.log("[<method>] start")
+        setupUI()
+    }
+    
+    // MARK: - Setup
+    private func setupUI() {
+        // SnapKit layout code
+    }
+    
+    // MARK: - Methods
+    func <method>() {
+        Logger.<category>.log("[<method>] start, param: \(value)")
+        
+        // guard 必须分行
+        guard let self = self else {
+            Logger.<category>.error("[<method>] self 已释放")
+            return
+        }
+        
+        // 分支记录
+        if <condition> {
+            Logger.<category>.log("[<method>] branch A, reason: xxx")
+        } else {
+            Logger.<category>.log("[<method>] branch B, reason: xxx")
+        }
+        
+        // 异常处理
+        do {
+            try <operation>()
+            Logger.<category>.log("[<method>] success")
+        } catch {
+            assertionFailure("[<method>] failed: \(error)")
+            Logger.<category>.error("[<method>] error: \(error)")
+        }
+    }
+}
+```
+
+### 6.2 检查清单（AI 自检用）
+
+生成代码后，AI 必须验证：
+
+- [ ] 使用 UIKit，非 SwiftUI
+- [ ] 布局使用 SnapKit，非 Storyboard/XIB
+- [ ] Logger 已定义（extension Logger）
+- [ ] Subsystem 和 Category 正确区分
+- [ ] 每条日志包含 [方法名] 前缀
+- [ ] Guard 语句分行写（非单行）
+- [ ] try-catch 包含 assertionFailure
+- [ ] assertionFailure 包含详细上下文
+
+---
+
+## 七、常见错误速查
+
+| 错误类型 | 错误示例 | 正确示例 |
+|---------|---------|---------|
+| Logger 定义错误 | 多个 Subsystem | 统一 Subsystem + 不同 Category |
+| 日志信息不足 | `log("start")` | `log("[method] start, param: x")` |
+| Guard 写成一行 | `guard x else { return }` | `guard x else {\n  log()\n  return\n}` |
+| 缺少 assertionFailure | catch 只记录日志 | catch + assertionFailure + 日志 |
+| 使用错误技术栈 | `import SwiftUI` | `import UIKit` |
