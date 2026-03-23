@@ -1,13 +1,10 @@
 ---
 title: 功能名称
 type: prd
-category: feature
 status: draft
 created: 2026-03-23
 updated: 2026-03-23
-tags: []
-related: []
-description: 一句话描述本功能的核心目标
+description: 简短描述核心重点
 ---
 
 # 功能描述

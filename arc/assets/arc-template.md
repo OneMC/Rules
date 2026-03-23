@@ -1,13 +1,10 @@
 ---
 title: 功能架构
 type: arc
-category: feature
 status: draft
 created: 2026-03-23
 updated: 2026-03-23
-tags: []
-related: []
-description: 一句话描述本架构的核心设计
+description: 简短描述核心重点
 ---
 
 # 技术方案

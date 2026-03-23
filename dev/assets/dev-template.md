@@ -1,13 +1,10 @@
 ---
 title: 功能开发记录
 type: dev
-category: feature
 status: draft
 created: 2026-03-23
 updated: 2026-03-23
-tags: []
-related: []
-description: 一句话描述本文档记录的内容
+description: 简短描述核心重点
 ---
 
 # 实现要点
