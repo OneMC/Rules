@@ -1,7 +1,6 @@
 ---
 title: 功能开发记录
 type: dev
-status: draft
 created: 2026-03-23
 updated: 2026-03-23
 description: 简短描述核心重点
